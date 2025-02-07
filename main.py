@@ -42,8 +42,3 @@ async def shutdown_event():
         await save_binary_file(pools, DATA_PATH)
     else:
         print("No data to save")
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, workers=4)

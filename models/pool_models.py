@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict, List
 from fastapi import HTTPException
-
+from utils.file_processors import save_binary_file
 
 class Pool:
     pool_id: int
@@ -62,6 +62,9 @@ class PoolManager:
             raise HTTPException(status_code=404,
                                 detail="Pool not found")
         return self.pools[pool_id]
+    
+    async def save_pool(self):
+        self.pools
 
     async def cal_quantile(self, pool_id: int, k: int):
         """
