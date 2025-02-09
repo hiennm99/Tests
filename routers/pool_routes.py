@@ -1,53 +1,42 @@
-"""Declare route for pool
-
-This module provides API routes for managing pool data,
-including adding new records and querying quantiles.
-"""
-from fastapi import APIRouter
-
+from fastapi import APIRouter, Depends, HTTPException
 from schemas.pool_schemas import PoolInput, PoolQuery
-from models.pool_models import PoolManager
+from models.data_models import PickleShardManager
+from utils.calculators import cal_percentile
+
 
 router = APIRouter(
     prefix="/api/v1/pool",
     tags=["pool"],
 )
-pool_manager = PoolManager()
 
+def get_pool_manager() -> PickleShardManager:
+    """Dependency to get instance of PickleShardManager"""
+    from main import pool_manager
+    return pool_manager
 
 @router.post("/add")
-async def add_pool(data: PoolInput):
-    """Insert new record or Update existed record
+async def add_pool(
+    payload: PoolInput,
+    pool_manager: PickleShardManager = Depends(get_pool_manager),
+):
+    """Insert or update record"""
+    if not pool_manager.exists(payload.poolId):
+        status = pool_manager.insert(payload.poolId, payload.poolValues)
+    else:
+        status = pool_manager.update(payload.poolId, payload.poolValues)
 
-    Args:
-        data (PoolInput): The input data containing poolId and poolValues.
-        pools (dict): The current pools data.
+    return {"status": status}
 
-    Returns:
-        dict: A dictionary containing the status of the operation.
-    """
-    status = await pool_manager.add_pool(data.poolId, data.poolValues)
-
+@router.post("/calculate/percentile")
+async def cal_percentile_route(
+    payload: PoolQuery,
+    pool_manager: PickleShardManager = Depends(get_pool_manager)
+):
+    """Calculate percentile"""
+    values = pool_manager.find_by_key(payload.poolId)
+    percentile, count = cal_percentile(values, payload.percentile)
+    
     return {
-        "status": status
-    }
-
-
-@router.post("/calculate/quantile")
-async def query_quantile(data: PoolQuery):
-    """Calculate quantile & count if record is exist
-
-    Args:
-        data (PoolQuery): The input data containing poolId and percentile.
-        pools (dict): The current pools data.
-
-    Returns:
-        dict: A dictionary containing the quantile value and count of values.
-    """
-    quantile, count = await pool_manager.cal_quantile(data.poolId,
-                                                      data.percentile)
-
-    return {
-        "quantile": quantile,
+        "percentile": percentile,
         "count": count
     }
